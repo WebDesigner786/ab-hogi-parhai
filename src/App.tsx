@@ -168,6 +168,11 @@ How can I assist your study today?
       timestamp: new Date().toISOString(),
     };
 
+    const currentHistory = messages.slice(-8).map((m) => ({
+      role: m.sender === 'user' ? 'user' : 'model',
+      content: m.text,
+    }));
+
     setMessages((prev) => [...prev, userMsg]);
     setIsChatLoading(true);
 
@@ -177,9 +182,13 @@ How can I assist your study today?
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
+          history: currentHistory,
           courseId: selectedCourseId,
           attachedDocIds: attachedDocIds || [],
           strictGrounding,
+          strictCorpusOnly: strictGrounding,
+          userRole: currentUser?.role || 'student',
+          university,
         }),
       });
 
@@ -331,6 +340,9 @@ How can I assist your study today?
               onInspectDocument={handleInspectDocument}
               onOpenArtifactInStudio={handleOpenArtifactInStudio}
               documents={documents}
+              strictGrounding={strictGrounding}
+              onToggleStrictGrounding={() => setStrictGrounding(!strictGrounding)}
+              onClearChat={() => setMessages([])}
             />
           )}
 

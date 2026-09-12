@@ -9,6 +9,7 @@ import { adminStore } from './server/adminStore.js';
 import {
   Citation,
   CourseDocument,
+  DocumentChunk,
   GeneratedArtifact,
   SocraticIdeaState,
   ToolExecution,
@@ -164,18 +165,54 @@ app.post('/api/chat', async (req, res) => {
   try {
     const {
       message,
+      history,
       courseId,
       strictCorpusOnly,
+      strictGrounding,
       attachedDocIds,
+      userRole,
+      university,
     } = req.body;
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message is required' });
     }
 
+    const isStrict = strictCorpusOnly === true || strictGrounding === true;
     const toolsExecuted: ToolExecution[] = [];
 
-    // Step 1: Classify intent
+    // Step 1: Collect relevant document chunks from attached documents and course corpus
+    let attachedChunks: DocumentChunk[] = [];
+    if (Array.isArray(attachedDocIds) && attachedDocIds.length > 0) {
+      for (const docId of attachedDocIds) {
+        const doc = ragStore.getDocument(docId);
+        if (doc && doc.chunks && doc.chunks.length > 0) {
+          attachedChunks.push(...doc.chunks);
+        }
+      }
+    }
+
+    // Search corpus for keyword matches
+    const searchResults = ragStore.searchCorpus(message, courseId, 4);
+    const searchChunks = searchResults.map((r) => r.chunk);
+
+    // Merge unique chunks
+    const chunkMap = new Map<string, DocumentChunk>();
+    for (const c of [...attachedChunks, ...searchChunks]) {
+      chunkMap.set(c.id, c);
+    }
+    const chunks = Array.from(chunkMap.values()).slice(0, 5);
+
+    if (chunks.length > 0) {
+      toolsExecuted.push({
+        toolName: 'corpus_retriever',
+        status: 'completed',
+        message: `Retrieved ${chunks.length} grounded course chunks (${chunks.map((c) => c.documentName).slice(0, 2).join(', ')}).`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Step 2: Classify intent
     const intentResult = await geminiService.classifyIntent(
       message,
       !!(attachedDocIds && attachedDocIds.length > 0)
@@ -188,7 +225,7 @@ app.post('/api/chat', async (req, res) => {
       timestamp: new Date().toISOString(),
     });
 
-    // Step 2: Handle intent execution
+    // Step 3: Handle intent execution
     let responseText = '';
     let citations: Citation[] = [];
     let artifact: GeneratedArtifact | undefined = undefined;
@@ -198,7 +235,7 @@ app.post('/api/chat', async (req, res) => {
       toolsExecuted.push({
         toolName: 'pdf_toolkit',
         status: 'completed',
-        message: 'PDF utility requested. Open the PDF Toolkit tab in the left sidebar to perform merge, split, rotate, and page organizer operations directly.',
+        message: 'PDF utility activated.',
         timestamp: new Date().toISOString(),
       });
       responseText = `I detected a PDF manipulation request. You can perform real PDF operations in the **PDF Toolkit** module (accessible from the sidebar):\n\n- **Merge**: Combine multiple lecture slide sets or assignments into one.\n- **Split**: Extract specific problem sets or pages.\n- **Organize & Rotate**: Reorder pages, remove duplicates, or correct orientation.\n- **Compress & Inspect**: View document metadata and byte size.\n\nWould you like me to process a specific document from your course corpus?`;
@@ -223,7 +260,7 @@ app.post('/api/chat', async (req, res) => {
       toolsExecuted.push({
         toolName: 'rubric_evaluator',
         status: 'completed',
-        message: 'Rubric Evaluator activated. Diagnostic report ready.',
+        message: 'Rubric Evaluator activated.',
         timestamp: new Date().toISOString(),
       });
       responseText = `To evaluate your assignment against a university grading rubric, you can either:\n\n1. Paste your draft and rubric here in chat, or\n2. Open the **Rubric Evaluator** tab in the sidebar for full interactive criterion-by-criterion diagnostics with confidence scores and evidence quotes.\n\nWhat assignment would you like to review?`;
@@ -235,11 +272,7 @@ app.post('/api/chat', async (req, res) => {
         timestamp: new Date().toISOString(),
       });
 
-      // Retrieve course materials for grounding
-      const searchResults = ragStore.searchCorpus(message, courseId, 4);
-      const chunks = searchResults.map((r) => r.chunk);
       const sourceContext = chunks.map((c) => c.content).join('\n\n');
-
       citations = chunks.map((c) => ({
         sourceDocId: c.documentId,
         sourceDocName: c.documentName,
@@ -270,28 +303,29 @@ app.post('/api/chat', async (req, res) => {
 
       responseText = `I have generated the academic work grounded in your course documents. You can inspect, edit, and export it as Markdown or formatted PDF in the **Artifact Studio** tab.\n\n### Document Preview\n\n${generatedDraft}`;
     } else {
-      // Default: Grounded RAG Query
+      // Default: Conversational AI Partner (ChatGPT / Gemini level)
       toolsExecuted.push({
-        toolName: 'corpus_retriever',
-        status: 'running',
-        message: `Searching course corpus for relevant sections...`,
+        toolName: chunks.length > 0 ? 'grounded_academic_copilot' : 'gemini_intelligence_engine',
+        status: 'completed',
+        message: chunks.length > 0
+          ? `Grounded in ${chunks.length} course sources with Gemini 3.8 Flash.`
+          : `Synthesized via Gemini 3.8 Flash academic co-pilot.`,
         timestamp: new Date().toISOString(),
       });
 
-      const searchResults = ragStore.searchCorpus(message, courseId, 5);
-      const chunks = searchResults.map((r) => r.chunk);
-
-      toolsExecuted[toolsExecuted.length - 1].status = 'completed';
-      toolsExecuted[toolsExecuted.length - 1].message = `Retrieved ${chunks.length} verified context chunks.`;
-
-      const ragResult = await geminiService.answerRAGQuery(
+      const courseObj = courseId ? ragStore.getCourse(courseId) : undefined;
+      const chatResult = await geminiService.chatConversation({
         message,
+        history,
         chunks,
-        strictCorpusOnly !== false
-      );
+        strictCorpusOnly: isStrict,
+        courseContext: courseObj ? { code: courseObj.code, title: courseObj.title } : undefined,
+        university: university || 'NUST',
+        userRole: userRole || 'student',
+      });
 
-      responseText = ragResult.answer;
-      citations = ragResult.citations;
+      responseText = chatResult.answer;
+      citations = chatResult.citations;
     }
 
     res.json({
