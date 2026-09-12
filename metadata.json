@@ -1,0 +1,6 @@
+{
+  "name": "ABHOGIPARHAI",
+  "description": "AI-powered academic workspace for Pakistani university and college students with document grounding, RAG, Socratic drafting, rubric grading, and PDF tools.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
