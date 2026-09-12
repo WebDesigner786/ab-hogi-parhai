@@ -404,7 +404,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                               );
                             }
 
-                            const codeBlockId = `code-${Math.random().toString(36).substr(2, 9)}`;
+                            const codeBlockId = `code-${lang || 'snippet'}-${codeString.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '_')}`;
 
                             return (
                               <div className="relative my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-900 text-slate-100 font-mono text-xs shadow-xs">

@@ -197,7 +197,7 @@ How can I assist your study today?
       const assistantMsg: ChatMessage = {
         id: `msg-assistant-${Date.now()}`,
         sender: 'assistant',
-        text: data.reply || 'No response received from the academic model.',
+        text: data.reply || data.error || 'No response received from the academic model.',
         timestamp: new Date().toISOString(),
         citations: data.citations || [],
         toolsExecuted: data.toolsExecuted || [],
@@ -253,7 +253,6 @@ How can I assist your study today?
 
   // Delete Document
   const handleDeleteDocument = async (docId: string) => {
-    if (!window.confirm('Remove this document from the course corpus?')) return;
     try {
       await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
       setDocuments((prev) => prev.filter((d) => d.id !== docId));

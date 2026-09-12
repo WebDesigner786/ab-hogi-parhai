@@ -93,6 +93,12 @@ app.delete('/api/documents/:id', (req, res) => {
   res.json({ success: true, message: 'Document deleted from private corpus.' });
 });
 
+// Reset Corpus
+app.post('/api/corpus/reset', (req, res) => {
+  ragStore.resetCorpus();
+  res.json({ success: true, message: 'Course corpus reset to default academic state.' });
+});
+
 // Document Upload & Ingestion
 app.post('/api/documents/upload', async (req, res) => {
   try {

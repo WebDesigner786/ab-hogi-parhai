@@ -42,6 +42,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ chunk: DocumentChunk; score: number }[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const filteredDocs = selectedCourseId
     ? documents.filter((d) => d.courseId === selectedCourseId)
@@ -280,14 +281,36 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
                 >
                   <MessageSquare className="w-4 h-4" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onDeleteDocument(doc.id)}
-                  title="Remove from corpus"
-                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {pendingDeleteId === doc.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onDeleteDocument(doc.id);
+                        setPendingDeleteId(null);
+                      }}
+                      className="text-[10px] bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-1 rounded-md transition-colors cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDeleteId(null)}
+                      className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-1.5 py-1 rounded-md transition-colors cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setPendingDeleteId(doc.id)}
+                    title="Remove from corpus"
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>

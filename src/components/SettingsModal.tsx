@@ -20,6 +20,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleStrictGrounding,
   onClearCorpus,
 }) => {
+  const [confirmReset, setConfirmReset] = React.useState(false);
+
   if (!isOpen) return null;
 
   const universities = [
@@ -120,19 +122,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="text-xs font-bold text-slate-800">Reset Workspace Corpus</div>
             <div className="text-[11px] text-slate-400">Remove uploaded documents and chat history</div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm('Reset all uploaded documents and restore default course materials?')) {
-                onClearCorpus();
-                onClose();
-              }
-            }}
-            className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Reset Data</span>
-          </button>
+          {confirmReset ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onClearCorpus();
+                  setConfirmReset(false);
+                  onClose();
+                }}
+                className="text-xs text-white font-semibold bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+              >
+                Confirm Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmReset(false)}
+                className="text-xs text-slate-600 hover:bg-slate-100 px-2 py-1.5 rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmReset(true)}
+              className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset Data</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

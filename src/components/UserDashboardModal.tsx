@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Shield,
@@ -42,6 +42,13 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
   const [studentId, setStudentId] = useState(currentUser.studentId);
   const [twoFactor, setTwoFactor] = useState(currentUser.twoFactorEnabled);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    setName(currentUser.name);
+    setDepartment(currentUser.department);
+    setStudentId(currentUser.studentId);
+    setTwoFactor(currentUser.twoFactorEnabled);
+  }, [currentUser]);
 
   // Notification preferences state
   const [notifyRubric, setNotifyRubric] = useState(true);

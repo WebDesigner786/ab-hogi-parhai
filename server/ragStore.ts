@@ -299,6 +299,13 @@ Instructions:
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, limit);
   }
+
+  public resetCorpus(): void {
+    this.courses.clear();
+    this.documents.clear();
+    this.chunks.clear();
+    this.seedInitialCourses();
+  }
 }
 
 export const ragStore = new RagStore();

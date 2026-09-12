@@ -1,4 +1,120 @@
-import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, degrees, PDFFont } from 'pdf-lib';
+
+const UNICODE_MATH_MAP: Record<string, string> = {
+  '≤': '<=',
+  '≥': '>=',
+  '≠': '!=',
+  '≈': '~=',
+  '≡': '==',
+  '×': '*',
+  '÷': '/',
+  '±': '+/-',
+  '√': 'sqrt',
+  '∞': 'infinity',
+  '∈': 'in',
+  '∉': 'not in',
+  '⊂': 'subset of',
+  '⊆': 'subseteq',
+  '∪': 'union',
+  '∩': 'intersection',
+  '→': '->',
+  '←': '<-',
+  '↔': '<->',
+  '⇒': '=>',
+  '⇐': '<=',
+  '⇔': '<=>',
+  'λ': 'lambda',
+  'Λ': 'Lambda',
+  'π': 'pi',
+  'Π': 'Pi',
+  'α': 'alpha',
+  'β': 'beta',
+  'γ': 'gamma',
+  'Γ': 'Gamma',
+  'δ': 'delta',
+  'Δ': 'Delta',
+  'θ': 'theta',
+  'Θ': 'Theta',
+  'σ': 'sigma',
+  'Σ': 'Sigma',
+  'ω': 'omega',
+  'Ω': 'Omega',
+  'ε': 'epsilon',
+  'μ': 'mu',
+  '∑': 'sum',
+  '∏': 'prod',
+  '∫': 'integral',
+  '•': '*',
+  '–': '-',
+  '—': '--',
+  '‘': "'",
+  '’': "'",
+  '“': '"',
+  '”': '"',
+  '…': '...',
+  '¹': '^1',
+  '²': '^2',
+  '³': '^3',
+  'ⁿ': '^n',
+  '₀': '_0',
+  '₁': '_1',
+  '₂': '_2',
+  'ᵢ': '_i',
+  'ⱼ': '_j',
+  '⊲': '<',
+  '⊳': '>',
+  '∀': 'for all',
+  '∃': 'there exists',
+  '¬': 'NOT',
+  '∧': 'AND',
+  '∨': 'OR',
+  '⊕': 'XOR',
+  '·': '*',
+  '°': ' deg',
+  '§': 'Sec. ',
+  '©': '(c)',
+  '®': '(R)',
+  '™': '(TM)',
+};
+
+function sanitizeForWinAnsi(text: string, font: PDFFont): string {
+  if (!text) return '';
+  let str = text;
+
+  // 1. Replace known unicode math/typography symbols
+  for (const [char, replacement] of Object.entries(UNICODE_MATH_MAP)) {
+    if (str.includes(char)) {
+      str = str.replaceAll(char, replacement);
+    }
+  }
+
+  // 2. Normalize unicode (NFKD) to decompose composite characters
+  str = str.normalize('NFKD');
+
+  // 3. Keep only characters that can be safely measured and encoded
+  let safeStr = '';
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    const code = char.charCodeAt(0);
+    // Standard ASCII printable
+    if (code >= 32 && code <= 126) {
+      safeStr += char;
+      continue;
+    }
+    if (char === '\t' || char === ' ') {
+      safeStr += ' ';
+      continue;
+    }
+    try {
+      font.widthOfTextAtSize(char, 10);
+      safeStr += char;
+    } catch {
+      safeStr += ' ';
+    }
+  }
+
+  return safeStr;
+}
 
 export class PdfService {
   /**
@@ -156,14 +272,16 @@ export class PdfService {
     let y = height - margin;
 
     // Header Branding
-    page.drawText('ABHOGIPARHAI — Academic Workspace', {
+    const safeBrand = sanitizeForWinAnsi('ABHOGIPARHAI — Academic Workspace', fontTimes);
+    page.drawText(safeBrand, {
       x: margin,
       y: y,
       size: 9,
       font: fontTimes,
       color: rgb(0.4, 0.4, 0.4),
     });
-    page.drawText(`${university} • Verified Grounded Output`, {
+    const safeUniHeader = sanitizeForWinAnsi(`${university} • Verified Grounded Output`, fontTimes);
+    page.drawText(safeUniHeader, {
       x: width - margin - 170,
       y: y,
       size: 9,
@@ -182,7 +300,8 @@ export class PdfService {
     y -= 30;
 
     // Title
-    page.drawText(title.slice(0, 75), {
+    const safeTitle = sanitizeForWinAnsi(title, fontTimesBold);
+    page.drawText(safeTitle.slice(0, 75), {
       x: margin,
       y: y,
       size: 18,
@@ -193,7 +312,8 @@ export class PdfService {
     y -= 20;
 
     // Subtitle & Author
-    page.drawText(`${subtitle} | Prepared by: ${author}`, {
+    const safeSubtitle = sanitizeForWinAnsi(`${subtitle} | Prepared by: ${author}`, fontTimes);
+    page.drawText(safeSubtitle, {
       x: margin,
       y: y,
       size: 11,
@@ -220,8 +340,9 @@ export class PdfService {
       // Check if heading
       if (trimmed.startsWith('#') || trimmed.endsWith(':')) {
         y -= 8;
-        const headingText = trimmed.replace(/^#+\s*/, '');
-        page.drawText(headingText.slice(0, 80), {
+        const headingRaw = trimmed.replace(/^#+\s*/, '');
+        const safeHeading = sanitizeForWinAnsi(headingRaw, fontTimesBold);
+        page.drawText(safeHeading.slice(0, 80), {
           x: margin,
           y,
           size: 13,
@@ -233,25 +354,33 @@ export class PdfService {
       }
 
       // Format text line wrapping
-      const words = trimmed.split(' ');
+      const sanitizedPara = sanitizeForWinAnsi(trimmed, fontTimes);
+      const words = sanitizedPara.split(' ');
       let currentLine = '';
       for (const word of words) {
         const testLine = currentLine ? `${currentLine} ${word}` : word;
-        const textWidth = fontTimes.widthOfTextAtSize(testLine, 10.5);
+        let textWidth = 0;
+        try {
+          textWidth = fontTimes.widthOfTextAtSize(testLine, 10.5);
+        } catch {
+          textWidth = testLine.length * 6;
+        }
 
         if (textWidth > contentWidth) {
           if (y < margin + 40) {
             page = pdfDoc.addPage([595.28, 841.89]);
             y = height - margin;
           }
-          page.drawText(currentLine, {
-            x: margin,
-            y,
-            size: 10.5,
-            font: fontTimes,
-            color: rgb(0.15, 0.15, 0.15),
-          });
-          y -= 14;
+          if (currentLine) {
+            page.drawText(currentLine, {
+              x: margin,
+              y,
+              size: 10.5,
+              font: fontTimes,
+              color: rgb(0.15, 0.15, 0.15),
+            });
+            y -= 14;
+          }
           currentLine = word;
         } else {
           currentLine = testLine;

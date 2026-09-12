@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   UploadCloud,
@@ -31,6 +31,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedCourseId) {
+      setTargetCourseId(selectedCourseId);
+    } else if (courses[0]?.id) {
+      setTargetCourseId(courses[0].id);
+    }
+  }, [selectedCourseId, courses, isOpen]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 

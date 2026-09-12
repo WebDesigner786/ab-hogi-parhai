@@ -312,7 +312,6 @@ export const AdminHubView: React.FC<AdminHubViewProps> = ({
 
   // Revoke API Key
   const handleRevokeApiKey = async (id: string) => {
-    if (!window.confirm('Revoke this API key? Systems using this key will immediately lose access.')) return;
     try {
       await fetch(`/api/api-keys/${id}`, { method: 'DELETE' });
       setApiKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: 'revoked' } : k)));

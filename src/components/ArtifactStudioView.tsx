@@ -11,6 +11,7 @@ import {
   Sparkles,
   ExternalLink,
   BookOpen,
+  AlertCircle,
 } from 'lucide-react';
 import { GeneratedArtifact } from '../types';
 
@@ -29,6 +30,7 @@ export const ArtifactStudioView: React.FC<ArtifactStudioViewProps> = ({
   const [copied, setCopied] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfDownloadUrl, setPdfDownloadUrl] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!artifact) {
     return (
@@ -55,6 +57,7 @@ export const ArtifactStudioView: React.FC<ArtifactStudioViewProps> = ({
 
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
+    setErrorMessage(null);
     try {
       const res = await fetch('/api/pdf/generate-academic', {
         method: 'POST',
@@ -84,9 +87,12 @@ export const ArtifactStudioView: React.FC<ArtifactStudioViewProps> = ({
         a.href = url;
         a.download = `${artifact.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
         a.click();
+      } else {
+        setErrorMessage(data.error || 'Failed to generate academic PDF.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('PDF export error:', err);
+      setErrorMessage(err?.message || 'Network error while generating PDF.');
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -159,6 +165,22 @@ export const ArtifactStudioView: React.FC<ArtifactStudioViewProps> = ({
           </button>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-900 flex items-center justify-between gap-2 max-w-4xl mx-auto">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-700 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="text-red-700 hover:text-red-900 font-bold px-2 py-0.5 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Editor or Preview Pane */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 max-w-4xl mx-auto">
